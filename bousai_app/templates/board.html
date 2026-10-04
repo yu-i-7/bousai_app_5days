@@ -3,23 +3,464 @@
 {% block title %}指示・発信ボード - 防災アプリ{% endblock %}
 
 {% block content %}
-<h2>発信ボード</h2>
-<p>住民向けの発信を登録・確認できます。</p>
+<style>
+  body {
+    font-size: 16px;
+    line-height: 1.6;
+  }
 
-<!-- 発信一覧 -->
-<h3>発信一覧</h3>
-{% if instructions %}
-<table border="1" cellpadding="5">
-  <tr>
-    <th>内容</th>
-  </tr>
-  {% for inst in instructions %}
-  <tr>
-    <td>{{ inst.content }}{% if inst.shelter %}（避難先: {{ inst.shelter }}）{% endif %}</td>
-  </tr>
-  {% endfor %}
-</table>
-{% else %}
-<p>登録されている指示はありません。</p>
-{% endif %}
+  body.font-large {
+    font-size: 18px;
+  }
+
+  body.font-xlarge {
+    font-size: 20px;
+  }
+
+  body.easy-mode .instruction-content,
+  body.easy-mode .broadcast-content,
+  body.easy-mode .panel p,
+  body.easy-mode .panel label,
+  body.easy-mode .board-title,
+  body.easy-mode .section-title {
+    line-height: 1.8;
+  }
+
+  .board-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .panel {
+    background: #ffffff;
+    border: 1px solid #dfe7f0;
+    border-radius: 14px;
+    padding: 18px;
+    box-shadow: 0 2px 6px rgba(15, 39, 63, 0.04);
+  }
+
+  .board-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+
+  .toolbar-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .toolbar-btn {
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 1px solid #bfd2ea;
+    background: #edf4fb;
+    color: #0d4a78;
+    cursor: pointer;
+    font-weight: 700;
+  }
+
+  .toolbar-btn.active {
+    background: #0b4a7b;
+    color: #fff;
+    border-color: #0b4a7b;
+  }
+
+  .form-grid {
+    display: grid;
+    gap: 12px;
+  }
+
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .checkbox-row input[type="checkbox"] {
+    width: 1.25rem;
+    height: 1.25rem;
+    flex: 0 0 auto;
+    margin: 0;
+    accent-color: #0b4a7b;
+  }
+
+  .checkbox-row label {
+    margin: 0;
+  }
+
+  label {
+    display: block;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+
+  input, select, textarea, button {
+    font: inherit;
+  }
+
+  input, select, textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #cfdbe8;
+    border-radius: 8px;
+    background: #fff;
+  }
+
+  button {
+    background: #0b4a7b;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 18px;
+    cursor: pointer;
+  }
+
+  .inline-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+  }
+
+  .sort-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 12px;
+  }
+
+  .sort-link {
+    display: inline-block;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: #edf4fb;
+    color: #0d4a78;
+    text-decoration: none;
+    font-weight: 700;
+  }
+
+  .instruction-list,
+  .broadcast-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .instruction-item,
+  .broadcast-item {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    border: 1px solid #e1e8f1;
+    border-radius: 12px;
+    padding: 12px 14px;
+    background: #f9fbfd;
+  }
+
+  .priority-badge {
+    min-width: 58px;
+    text-align: center;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: #fff;
+  }
+
+  .priority-high { background: #d62f2f; }
+  .priority-medium { background: #f2a900; }
+  .priority-low { background: #2e9e5f; }
+
+  .instruction-body,
+  .broadcast-body {
+    flex: 1;
+  }
+
+  .instruction-meta,
+  .broadcast-meta {
+    color: #5a6978;
+    font-size: 0.85rem;
+    margin-bottom: 5px;
+  }
+
+  .instruction-content,
+  .broadcast-content {
+    font-weight: 700;
+    margin: 0;
+  }
+
+  .status-form {
+    margin-top: 10px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .status-form select {
+    max-width: 140px;
+  }
+
+  .status-form button {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+  }
+
+  .status-chip {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin-left: 6px;
+  }
+
+  .status-unassigned { background: #eef2f7; color: #384554; }
+  .status-active { background: #ffe5e5; color: #8d1f1f; }
+  .status-progress { background: #fff1ce; color: #7a5400; }
+  .status-done { background: #dff6ea; color: #1b6b44; }
+
+  .danger-high { border-left: 6px solid #d62f2f; }
+  .danger-medium { border-left: 6px solid #f2a900; }
+  .danger-low { border-left: 6px solid #2e9e5f; }
+
+  .instruction-item.danger-high {
+    background: #fff1f0;
+    color: #352424;
+  }
+
+  .instruction-item.danger-medium {
+    background: #fff8e5;
+    color: #352f20;
+  }
+
+  .instruction-item.danger-low {
+    background: #edf8f1;
+    color: #24362b;
+  }
+
+  .muted {
+    color: #5a6978;
+  }
+
+  @media (max-width: 600px) {
+    .board-toolbar {
+      align-items: flex-start;
+    }
+    .instruction-item,
+    .broadcast-item {
+      flex-direction: column;
+    }
+  }
+</style>
+
+<div class="board-wrap">
+  <section class="panel">
+    <div class="board-toolbar">
+      <div>
+        <h2 class="board-title" style="margin: 0;">指示・発信ボード</h2>
+      </div>
+      <div class="toolbar-group" aria-label="表示設定">
+        <button type="button" class="toolbar-btn active" data-font="normal">標準</button>
+        <button type="button" class="toolbar-btn" data-font="large">大</button>
+        <button type="button" class="toolbar-btn" data-font="xlarge">特大</button>
+        <button type="button" class="toolbar-btn" id="easyModeToggle">やさしい日本語</button>
+      </div>
+    </div>
+
+    {% if error %}
+      <p style="color: red;">{{ message }}</p>
+    {% endif %}
+    {% if message and not error %}
+      <p style="color: green;">{{ message }}</p>
+    {% endif %}
+
+    <h3 class="section-title">指示登録</h3>
+    <form method="POST" class="form-grid" onsubmit="return confirm('指示を登録してよろしいですか？');">
+      <div class="inline-grid">
+        <div>
+          <label for="target">対象</label>
+          <select id="target" name="target">
+            <option value="住民">住民</option>
+            <option value="防災課">防災課</option>
+            <option value="道路管理課">道路管理課</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="target_area">対象地区</label>
+          <input type="text" id="target_area" name="target_area" value="青森市" placeholder="青森市">
+        </div>
+
+        <div>
+          <label for="recipient">宛先</label>
+          <select id="recipient" name="recipient">
+            <option value="住民向け">住民向け</option>
+            <option value="防災課">防災課</option>
+            <option value="道路管理課">道路管理課</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="priority">緊急度</label>
+          <select id="priority" name="priority">
+            <option value="高">高</option>
+            <option value="中" selected>中</option>
+            <option value="低">低</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label for="content">指示内容</label>
+        <textarea id="content" name="content" rows="4" placeholder="避難指示や対応指示を入力してください"></textarea>
+      </div>
+
+      <div>
+        <label for="shelter">避難先（任意）</label>
+        <input type="text" id="shelter" name="shelter" placeholder="例: 片瀬小学校">
+      </div>
+
+      <div>
+        <button type="submit">指示登録</button>
+      </div>
+    </form>
+
+    <h3 class="section-title">住民向け発信</h3>
+    <form method="POST" class="form-grid" onsubmit="return confirm('この内容を住民向けに発信してよろしいですか？');">
+      <div class="inline-grid">
+        <div>
+          <label for="broadcast_target">発信先</label>
+          <select id="broadcast_target" name="broadcast_target">
+            <option value="住民向け">住民向け</option>
+            <option value="地域住民">地域住民</option>
+            <option value="避難所利用者">避難所利用者</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="broadcast_area">対象地区</label>
+          <input type="text" id="broadcast_area" name="broadcast_area" value="青森市" placeholder="青森市">
+        </div>
+      </div>
+
+      <div>
+        <label for="broadcast_content">発信内容</label>
+        <textarea id="broadcast_content" name="broadcast_content" rows="4" placeholder="避難所への進入はご遠慮ください"></textarea>
+      </div>
+
+      <div class="checkbox-row">
+        <input type="checkbox" id="display_on_home" name="display_on_home" checked>
+        <label for="display_on_home">ホーム画面に表示する</label>
+      </div>
+
+      <div>
+        <button type="submit">発信実行</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h3 class="section-title">発信履歴</h3>
+    <div class="sort-row">
+      {% if sort == 'newest' %}
+        <a class="sort-link" href="/board?sort=priority">緊急度順</a>
+      {% else %}
+        <a class="sort-link" href="/board?sort=newest">新しい順</a>
+      {% endif %}
+    </div>
+
+    {% if broadcasts %}
+      <div class="broadcast-list">
+        {% for item in broadcasts|reverse %}
+          <div class="broadcast-item">
+            <div class="broadcast-body">
+              <div class="broadcast-meta">{{ item.recipient }} · {{ item.target_area }} · {{ item.sent_at }}</div>
+              <p class="broadcast-content">{{ item.content }}</p>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="muted">発信履歴はありません。</p>
+    {% endif %}
+  </section>
+
+  <section class="panel">
+    <h3 class="section-title">指示一覧</h3>
+
+    {% if instructions %}
+      <div class="instruction-list">
+        {% for inst in instructions %}
+          {% set p = inst.priority|default('中') %}
+          {% if p == '高' %}
+            {% set card_cls = 'danger-high' %}
+            {% set badge_cls = 'priority-high' %}
+            {% set status_cls = 'status-active' %}
+          {% elif p == '低' %}
+            {% set card_cls = 'danger-low' %}
+            {% set badge_cls = 'priority-low' %}
+            {% set status_cls = 'status-done' %}
+          {% else %}
+            {% set card_cls = 'danger-medium' %}
+            {% set badge_cls = 'priority-medium' %}
+            {% set status_cls = 'status-progress' %}
+          {% endif %}
+
+          <div class="instruction-item {{ card_cls }}">
+            <div class="priority-badge {{ badge_cls }}">{{ p }}</div>
+            <div class="instruction-body">
+              <div class="instruction-meta">
+                {{ inst.target }} · {{ inst.recipient }} · {{ inst.target_area|default('青森市') }} · {{ inst.created_at }}
+                <span class="status-chip {{ status_cls }}">{{ inst.status|default('未対応') }}</span>
+              </div>
+              <p class="instruction-content">{{ inst.content }}{% if inst.shelter %}（避難先: {{ inst.shelter }}）{% endif %}</p>
+
+              <form class="status-form" method="POST" action="{{ url_for('update_instruction_status', instruction_id=inst.id) }}">
+                <select name="status" aria-label="状態変更">
+                  <option value="未対応" {% if inst.status == '未対応' %}selected{% endif %}>未対応</option>
+                  <option value="対応中" {% if inst.status == '対応中' %}selected{% endif %}>対応中</option>
+                  <option value="完了" {% if inst.status == '完了' %}selected{% endif %}>完了</option>
+                </select>
+                <button type="submit">状態更新</button>
+              </form>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p>登録されている指示はありません。</p>
+    {% endif %}
+  </section>
+</div>
+
+<script>
+  (function () {
+    const body = document.body;
+    const buttons = document.querySelectorAll('[data-font]');
+
+    buttons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const target = button.dataset.font;
+        body.classList.remove('font-large', 'font-xlarge');
+        if (target === 'large') {
+          body.classList.add('font-large');
+        } else if (target === 'xlarge') {
+          body.classList.add('font-xlarge');
+        }
+        buttons.forEach((item) => item.classList.toggle('active', item === button));
+      });
+    });
+
+    const easyButton = document.getElementById('easyModeToggle');
+    easyButton.addEventListener('click', () => {
+      body.classList.toggle('easy-mode');
+      easyButton.classList.toggle('active');
+    });
+  })();
+</script>
 {% endblock %}

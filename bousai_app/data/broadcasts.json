@@ -1,0 +1,74 @@
+[
+  {
+    "id": 1,
+    "target_area": "青森市",
+    "content": "避難所に避難してください。",
+    "recipient": "住民向け",
+    "sent_at": "2026年10月04日 12:35",
+    "display_on_home": true,
+    "confirmed": true
+  },
+  {
+    "id": 2,
+    "target_area": "青森市",
+    "content": "あ",
+    "recipient": "住民向け",
+    "sent_at": "2026年10月04日 12:38",
+    "display_on_home": true,
+    "confirmed": true
+  },
+  {
+    "id": 3,
+    "target_area": "青森市",
+    "content": "避難所への進入はご遠慮ください",
+    "recipient": "住民向け",
+    "sent_at": "2026年10月04日 12:38",
+    "display_on_home": true,
+    "confirmed": true
+  },
+  {
+    "id": 4,
+    "target_area": "青森市",
+    "content": "避難所への進入はご遠慮ください",
+    "recipient": "住民向け",
+    "sent_at": "2026年10月04日 12:38",
+    "display_on_home": true,
+    "confirmed": true
+  },
+  {
+    "id": 5,
+    "target_area": "青森市",
+    "content": "避難所への進入はご遠慮ください",
+    "recipient": "住民向け",
+    "sent_at": "2026年10月04日 12:41",
+    "display_on_home": true,
+    "confirmed": true
+  },
+  {
+    "id": 6,
+    "target_area": "青森市",
+    "content": "避難所への進入はご遠慮ください",
+    "recipient": "住民向け",
+    "sent_at": "2026年10月04日 12:44",
+    "display_on_home": true,
+    "confirmed": true
+  },
+  {
+    "id": 7,
+    "target_area": "青森市",
+    "content": "避難所への進入はご遠慮ください",
+    "recipient": "住民向け",
+    "sent_at": "2026年10月04日 12:44",
+    "display_on_home": true,
+    "confirmed": true
+  },
+  {
+    "id": 8,
+    "target_area": "青森市",
+    "content": "避難所への進入はご遠慮ください",
+    "recipient": "住民向け",
+    "sent_at": "2026年10月04日 12:47",
+    "display_on_home": true,
+    "confirmed": true
+  }
+]

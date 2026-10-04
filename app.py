@@ -84,6 +84,7 @@ WARNING_CODES = {
 # サンプルデータの読み込み
 DATA_FILE = os.path.join(APP_DIR, 'data', 'shelters.json')
 INSTRUCTIONS_FILE = os.path.join(APP_DIR, 'data', 'instructions.json')
+BROADCAST_FILE = os.path.join(APP_DIR, 'data', 'broadcasts.json')
 
 def load_json(path, default):
     """JSONファイルを読み込む（存在しない・壊れている場合は default を返す）"""
@@ -95,12 +96,22 @@ def load_json(path, default):
 
 shelters = load_json(DATA_FILE, [])
 instructions = load_json(INSTRUCTIONS_FILE, [])
+broadcasts = load_json(BROADCAST_FILE, [])
 
 def save_instructions():
     """指示ボードのデータをファイルに保存する"""
     try:
         with open(INSTRUCTIONS_FILE, 'w', encoding='utf-8') as f:
             json.dump(instructions, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
+def save_broadcasts():
+    """住民向け発信データをファイルに保存する"""
+    try:
+        with open(BROADCAST_FILE, 'w', encoding='utf-8') as f:
+            json.dump(broadcasts, f, ensure_ascii=False, indent=2)
     except Exception:
         pass
 
@@ -248,7 +259,16 @@ def get_weather_warnings():
 @app.route('/')
 def index():
     resident_notices = [i for i in instructions if i.get('target') == '住民']
-    return render_template('index.html', resident_notices=resident_notices)
+    resident_broadcasts = sorted(
+        (item for item in broadcasts if item.get('display_on_home')),
+        key=lambda item: item.get('id', 0),
+        reverse=True,
+    )
+    return render_template(
+        'index.html',
+        resident_notices=resident_notices,
+        resident_broadcasts=resident_broadcasts,
+    )
 
 # ログインページ
 @app.route('/login', methods=['GET', 'POST'])
@@ -323,11 +343,84 @@ def all_shelters():
 
 
 # 指示ボード：住民向けの指示を一覧で確認する
-@app.route('/board')
+@app.route('/board', methods=['GET', 'POST'])
 @login_required
 def board():
-    resident_instructions = [i for i in instructions if i.get('target') == '住民']
-    return render_template('board.html', instructions=resident_instructions)
+    error = False
+    message = ""
+
+    if request.method == 'POST':
+        broadcast_content = request.form.get('broadcast_content', '').strip()
+        if broadcast_content:
+            target_area = request.form.get('broadcast_area', '').strip() or '青森市'
+            recipient = request.form.get('broadcast_target', '住民向け').strip() or '住民向け'
+            display_on_home = request.form.get('display_on_home') == 'on'
+            new_id = max((item.get('id', 0) for item in broadcasts), default=0) + 1
+            timestamp = datetime.now(JST).strftime('%Y年%m月%d日 %H:%M')
+            broadcasts.append({
+                'id': new_id,
+                'target_area': target_area,
+                'content': broadcast_content,
+                'recipient': recipient,
+                'sent_at': timestamp,
+                'display_on_home': display_on_home,
+                'confirmed': True,
+            })
+            save_broadcasts()
+            message = '住民向け発信を登録しました。'
+        else:
+            content = request.form.get('content', '').strip()
+            target = request.form.get('target', '住民').strip() or '住民'
+            shelter = request.form.get('shelter', '').strip()
+            target_area = request.form.get('target_area', '').strip() or target
+            recipient = request.form.get('recipient', '住民向け').strip() or '住民向け'
+            priority = request.form.get('priority', '中').strip() or '中'
+
+            if not content:
+                error = True
+                message = '指示内容を入力してください。'
+            else:
+                new_id = max((item.get('id', 0) for item in instructions), default=0) + 1
+                timestamp = datetime.now(JST).strftime('%Y年%m月%d日 %H:%M')
+                instructions.append({
+                    'id': new_id,
+                    'target': target,
+                    'target_area': target_area,
+                    'recipient': recipient,
+                    'content': content,
+                    'shelter': shelter,
+                    'status': '未対応',
+                    'priority': priority,
+                    'created_at': timestamp,
+                    'updated_at': timestamp,
+                })
+                save_instructions()
+                message = '指示を登録しました。'
+
+    sort = request.args.get('sort', 'priority')
+    resident_instructions = [i for i in instructions if i.get('target') == '住民' or i.get('recipient') == '住民向け']
+    if sort == 'newest':
+        resident_instructions = sorted(resident_instructions, key=lambda item: item.get('id', 0), reverse=True)
+    else:
+        priority_order = {'高': 0, '中': 1, '低': 2}
+        resident_instructions = sorted(
+            resident_instructions,
+            key=lambda item: (priority_order.get(item.get('priority', '中'), 99), -item.get('id', 0))
+        )
+    return render_template('board.html', instructions=resident_instructions, broadcasts=broadcasts, error=error, message=message, sort=sort)
+
+
+@app.route('/board/status/<int:instruction_id>', methods=['POST'])
+@login_required
+def update_instruction_status(instruction_id):
+    status = request.form.get('status', '未対応').strip() or '未対応'
+    for item in instructions:
+        if item.get('id') == instruction_id:
+            item['status'] = status
+            item['updated_at'] = datetime.now(JST).strftime('%Y年%m月%d日 %H:%M')
+            save_instructions()
+            break
+    return redirect(url_for('board'))
 
 # 検索結果ページ：templates/search_results.html を返す
 @app.route('/search_results')

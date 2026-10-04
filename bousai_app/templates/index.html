@@ -26,6 +26,39 @@
     font-weight: 700;
   }
 
+  .broadcast-panel {
+    border-left: 6px solid #b42318;
+    background: #fff1f0;
+    color: #352424;
+  }
+
+  .broadcast-panel .panel-title {
+    color: #7a1d16;
+  }
+
+  .broadcast-list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .broadcast-message {
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid #f0c5c1;
+    border-radius: 8px;
+    background: #fff;
+    color: #352424;
+    font-weight: 700;
+  }
+
+  .broadcast-meta {
+    display: block;
+    margin-top: 4px;
+    color: #594744;
+    font-size: 0.85rem;
+    font-weight: 400;
+  }
+
   .pin {
     position: relative;
     width: 16px;
@@ -181,6 +214,20 @@
 </style>
 
 <div class="panel-stack">
+  {% if resident_broadcasts %}
+  <section class="panel broadcast-panel" aria-labelledby="broadcastTitle">
+    <h2 class="panel-title" id="broadcastTitle">住民向けのお知らせ</h2>
+    <div class="broadcast-list">
+      {% for item in resident_broadcasts %}
+        <p class="broadcast-message">
+          {{ item.content }}
+          <span class="broadcast-meta">{{ item.target_area }} · {{ item.sent_at }}</span>
+        </p>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
   <section class="panel">
     <h2 class="panel-title"><span class="pin"></span>避難所マップ</h2>
     <div class="map-shell">
