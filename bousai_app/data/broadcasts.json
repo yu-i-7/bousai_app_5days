@@ -70,5 +70,23 @@
     "sent_at": "2026年10月04日 12:47",
     "display_on_home": true,
     "confirmed": true
+  },
+  {
+    "id": 9,
+    "target_area": "青森市",
+    "content": "避難所への進入はご遠慮ください",
+    "recipient": "住民向け",
+    "sent_at": "2026年10月04日 13:11",
+    "display_on_home": true,
+    "confirmed": true
+  },
+  {
+    "id": 10,
+    "target_area": "青森市",
+    "content": "避難所への進入はご遠慮ください",
+    "recipient": "住民向け",
+    "sent_at": "2026年10月04日 13:11",
+    "display_on_home": true,
+    "confirmed": true
   }
 ]

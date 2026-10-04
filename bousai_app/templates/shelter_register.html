@@ -1,23 +1,332 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>避難所登録</h2>
-<p>新しい避難所情報を登録します。</p>
+<style>
+  .shelter-page {
+    display: grid;
+    gap: 24px;
+  }
 
-<!-- 成功・エラーメッセージ表示 -->
-{% if success %}
-  <p>{{ message }}</p>
-{% endif %}
+  .shelter-section {
+    padding: 20px;
+    border: 1px solid #dfe7f0;
+    border-radius: 12px;
+    background: #fff;
+  }
 
-{% if error %}
-  <p>{{ message }}</p>
-{% endif %}
+  .shelter-section h2,
+  .shelter-section h3 {
+    margin-top: 0;
+    color: #0c4d82;
+  }
 
-<form method="POST">
-  <p>
-    <label for="name">避難所名（必須）</label><br>
-    <input type="text" id="name" name="name">
-  </p>
-  <p><button type="submit">登録</button></p>
-</form>
+  .form-grid,
+  .option-grid,
+  .shelter-list {
+    display: grid;
+    gap: 14px;
+  }
+
+  .form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .field {
+    display: grid;
+    gap: 6px;
+  }
+
+  .field-wide {
+    grid-column: 1 / -1;
+  }
+
+  .field label,
+  legend {
+    font-weight: 700;
+  }
+
+  .field input,
+  .field select {
+    width: 100%;
+    min-height: 44px;
+    padding: 9px 11px;
+    border: 1px solid #b9c8d7;
+    border-radius: 6px;
+    background: #fff;
+    color: #222f3d;
+    font: inherit;
+  }
+
+  .field small,
+  .section-hint {
+    color: #596b7b;
+  }
+
+  fieldset {
+    min-width: 0;
+    margin: 0;
+    padding: 12px;
+    border: 1px solid #d5e0e9;
+    border-radius: 8px;
+  }
+
+  .option-grid {
+    grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+    margin-top: 10px;
+  }
+
+  .option-label {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-height: 40px;
+    padding: 7px 9px;
+    border: 1px solid #e0e7ee;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .option-label input {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: #0c4d82;
+  }
+
+  .form-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .form-actions button,
+  .edit-button {
+    min-height: 42px;
+    padding: 9px 16px;
+    border: 0;
+    border-radius: 6px;
+    background: #0c4d82;
+    color: #fff;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .form-actions .secondary-button {
+    border: 1px solid #9baebe;
+    background: #fff;
+    color: #263d51;
+  }
+
+  .message {
+    margin: 0 0 16px;
+    padding: 11px 13px;
+    border-radius: 6px;
+  }
+
+  .message-error {
+    border: 1px solid #d89c98;
+    background: #fff1f0;
+    color: #751e18;
+  }
+
+  .message-success {
+    border: 1px solid #91c9a6;
+    background: #edf8f1;
+    color: #205d37;
+  }
+
+  .shelter-card {
+    padding: 14px;
+    border: 1px solid #dfe7f0;
+    border-left: 5px solid #0c4d82;
+    border-radius: 8px;
+    background: #f8fafc;
+  }
+
+  .shelter-card h4 {
+    margin: 0 0 8px;
+    font-size: 1.05rem;
+  }
+
+  .shelter-card p {
+    margin: 4px 0;
+    overflow-wrap: anywhere;
+  }
+
+  .shelter-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .status-open {
+    color: #17643b;
+    font-weight: 700;
+  }
+
+  .status-closed {
+    color: #8d2924;
+    font-weight: 700;
+  }
+
+  @media (max-width: 640px) {
+    .form-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .field-wide {
+      grid-column: auto;
+    }
+
+    .shelter-card-header {
+      flex-direction: column;
+    }
+  }
+</style>
+
+<div class="shelter-page">
+  <section class="shelter-section" aria-labelledby="registerTitle">
+    <h2 id="registerTitle">避難所登録</h2>
+    <p class="section-hint">基本情報と対応可能な災害・設備を登録します。</p>
+
+    {% if success %}
+      <p class="message message-success" role="status">{{ message }}</p>
+    {% endif %}
+    {% if error %}
+      <p class="message message-error" role="alert">{{ message }}</p>
+    {% endif %}
+
+    <form id="shelterForm" method="POST" class="form-grid" onsubmit="return confirmShelterSubmit();">
+      <input type="hidden" id="shelterId" name="shelter_id" value="{{ form_data.get('shelter_id', '') }}">
+
+      <div class="field">
+        <label for="name">避難所名（必須）</label>
+        <input type="text" id="name" name="name" value="{{ form_data.get('name', '') }}" placeholder="例: 青森市立中央小学校" required maxlength="120">
+      </div>
+
+      <div class="field">
+        <label for="address">住所（必須）</label>
+        <input type="text" id="address" name="address" value="{{ form_data.get('address', '') }}" placeholder="例: 青森市中央一丁目1-1" required maxlength="200">
+      </div>
+
+      <div class="field">
+        <label for="capacity">収容人数（必須）</label>
+        <input type="text" id="capacity" name="capacity" value="{{ form_data.get('capacity', '') }}" placeholder="例: 250" inputmode="numeric" pattern="[0-9]+" maxlength="7" required aria-describedby="capacityHint">
+        <small id="capacityHint">1人以上の半角数字で入力してください。</small>
+      </div>
+
+      <div class="field">
+        <label for="status">開設状況</label>
+        <select id="status" name="status" required>
+          {% for option in status_options %}
+            <option value="{{ option }}" {% if form_data.get('status', '未開設') == option %}selected{% endif %}>{{ option }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <fieldset class="field-wide">
+        <legend>対応可能な災害種別</legend>
+        <div class="option-grid">
+          {% for option in disaster_options %}
+            <label class="option-label">
+              <input type="checkbox" name="disasters" value="{{ option }}" {% if option in form_data.get('disasters', []) %}checked{% endif %}>
+              <span>{{ option }}</span>
+            </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+
+      <fieldset class="field-wide">
+        <legend>避難所の設備</legend>
+        <div class="option-grid">
+          {% for option in facility_options %}
+            <label class="option-label">
+              <input type="checkbox" name="facilities" value="{{ option }}" {% if option in form_data.get('facilities', []) %}checked{% endif %}>
+              <span>{{ option }}</span>
+            </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+
+      <div class="form-actions field-wide">
+        <button type="submit" id="submitButton">{{ '更新' if form_data.get('shelter_id') else '登録' }}</button>
+        <button type="button" class="secondary-button" id="cancelEditButton" hidden>編集をキャンセル</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="shelter-section" aria-labelledby="shelterListTitle">
+    <h3 id="shelterListTitle">登録済み避難所</h3>
+    {% if shelters %}
+      <div class="shelter-list">
+        {% for shelter in shelters %}
+          <article class="shelter-card">
+            <div class="shelter-card-header">
+              <div>
+                <h4>{{ shelter.name }}</h4>
+                <p>住所: {{ shelter.address|default('未登録', true) }}</p>
+                <p>収容人数: {{ shelter.capacity|default('未登録', true) }}{% if shelter.capacity %}人{% endif %}</p>
+                <p>対応災害: {{ shelter.disasters|default([], true)|join('、') or '未登録' }}</p>
+                <p>設備: {{ shelter.facilities|default([], true)|join('、') or '未登録' }}</p>
+                <p>開設状況: <span class="{% if shelter.status == '開設中' %}status-open{% elif shelter.status == '閉鎖中' %}status-closed{% endif %}">{{ shelter.status|default('未開設', true) }}</span></p>
+              </div>
+              <button type="button" class="edit-button" data-shelter='{{ shelter|tojson|forceescape }}'>編集</button>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p>登録済みの避難所はありません。</p>
+    {% endif %}
+  </section>
+</div>
+
+<script>
+  const shelterForm = document.getElementById('shelterForm');
+  const shelterId = document.getElementById('shelterId');
+  const submitButton = document.getElementById('submitButton');
+  const cancelEditButton = document.getElementById('cancelEditButton');
+
+  function confirmShelterSubmit() {
+    const action = shelterId.value ? '登録情報を更新' : '避難所を登録';
+    return window.confirm(`入力内容を確認してください。\n\n${document.getElementById('name').value}\n${document.getElementById('address').value}\n収容人数: ${document.getElementById('capacity').value}人\n\nこの内容で${action}しますか？`);
+  }
+
+  document.getElementById('capacity').addEventListener('input', (event) => {
+    event.target.value = event.target.value.replace(/[^0-9]/g, '');
+  });
+
+  document.querySelectorAll('.edit-button').forEach((button) => {
+    button.addEventListener('click', () => {
+      const shelter = JSON.parse(button.dataset.shelter);
+      shelterId.value = shelter.id;
+      document.getElementById('name').value = shelter.name || '';
+      document.getElementById('address').value = shelter.address || '';
+      document.getElementById('capacity').value = shelter.capacity ?? '';
+      document.getElementById('status').value = shelter.status || '未開設';
+
+      document.querySelectorAll('input[name="disasters"]').forEach((checkbox) => {
+        checkbox.checked = (shelter.disasters || []).includes(checkbox.value);
+      });
+      document.querySelectorAll('input[name="facilities"]').forEach((checkbox) => {
+        checkbox.checked = (shelter.facilities || []).includes(checkbox.value);
+      });
+
+      submitButton.textContent = '更新';
+      cancelEditButton.hidden = false;
+      shelterForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.getElementById('name').focus({ preventScroll: true });
+    });
+  });
+
+  cancelEditButton.addEventListener('click', () => {
+    shelterForm.reset();
+    shelterId.value = '';
+    submitButton.textContent = '登録';
+    cancelEditButton.hidden = true;
+  });
+</script>
 {% endblock %}

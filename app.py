@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, request, render_template, session, redirect, url_for
 from urllib.parse import urlparse, urljoin
 from functools import wraps
+from typing import TypedDict
 import json
 import os
 import urllib.request
@@ -86,6 +87,16 @@ DATA_FILE = os.path.join(APP_DIR, 'data', 'shelters.json')
 INSTRUCTIONS_FILE = os.path.join(APP_DIR, 'data', 'instructions.json')
 BROADCAST_FILE = os.path.join(APP_DIR, 'data', 'broadcasts.json')
 
+
+class ShelterRecord(TypedDict):
+    id: int
+    name: str
+    address: str
+    capacity: int
+    disasters: list[str]
+    facilities: list[str]
+    status: str
+
 def load_json(path, default):
     """JSONファイルを読み込む（存在しない・壊れている場合は default を返す）"""
     try:
@@ -94,7 +105,7 @@ def load_json(path, default):
     except (FileNotFoundError, json.JSONDecodeError):
         return default
 
-shelters = load_json(DATA_FILE, [])
+shelters: list[ShelterRecord] = load_json(DATA_FILE, [])
 instructions = load_json(INSTRUCTIONS_FILE, [])
 broadcasts = load_json(BROADCAST_FILE, [])
 
@@ -315,21 +326,82 @@ def shelter_register():
     success = False
     error = False
     message = ""
+    form_data = {}
+    disaster_options = ['地震', '津波', '洪水', '土砂災害', '火災', '暴風・大雪']
+    facility_options = ['ペット可', 'バリアフリー', '非常用電源', 'Wi-Fi', '授乳室', '多目的トイレ']
+    status_options = ['未開設', '開設中', '閉鎖中']
 
     if request.method == 'POST':
-        shelter_name = request.form.get('name', '').strip()
+        shelter_id = request.form.get('shelter_id', '').strip()
+        form_data = {
+            'shelter_id': shelter_id,
+            'name': request.form.get('name', '').strip(),
+            'address': request.form.get('address', '').strip(),
+            'capacity': request.form.get('capacity', '').strip(),
+            'disasters': [value for value in request.form.getlist('disasters') if value in disaster_options],
+            'facilities': [value for value in request.form.getlist('facilities') if value in facility_options],
+            'status': request.form.get('status', '未開設').strip(),
+        }
 
-        if not shelter_name:
+        if not form_data['name']:
             error = True
             message = '避難所名を入力してください。'
+        elif not form_data['address']:
+            error = True
+            message = '住所を入力してください。'
+        elif (
+            not form_data['capacity'].isascii()
+            or not form_data['capacity'].isdigit()
+            or int(form_data['capacity']) < 1
+        ):
+            error = True
+            message = '収容人数は1以上の数字で入力してください。'
+        elif form_data['status'] not in status_options:
+            error = True
+            message = '開設状況を選択してください。'
         else:
-            new_id = max((s.get('id', 0) for s in shelters), default=0) + 1
-            shelters.append({'id': new_id, 'name': shelter_name})
-            save_shelters()
-            success = True
-            message = f'{shelter_name} を登録しました。'
+            record_data = {
+                'name': form_data['name'],
+                'address': form_data['address'],
+                'capacity': int(form_data['capacity']),
+                'disasters': form_data['disasters'],
+                'facilities': form_data['facilities'],
+                'status': form_data['status'],
+            }
+            if shelter_id:
+                try:
+                    target_id = int(shelter_id)
+                except ValueError:
+                    target_id = None
+                shelter = next((item for item in shelters if item.get('id') == target_id), None)
+                if shelter is None:
+                    error = True
+                    message = '編集する避難所が見つかりません。'
+                else:
+                    shelter.update(record_data)
+                    save_shelters()
+                    success = True
+                    message = f'{form_data["name"]} の情報を更新しました。'
+                    form_data = {}
+            else:
+                new_id = max((s.get('id', 0) for s in shelters), default=0) + 1
+                shelters.append({'id': new_id, **record_data})
+                save_shelters()
+                success = True
+                message = f'{form_data["name"]} を登録しました。'
+                form_data = {}
 
-    return render_template('shelter_register.html', success=success, error=error, message=message)
+    return render_template(
+        'shelter_register.html',
+        success=success,
+        error=error,
+        message=message,
+        form_data=form_data,
+        shelters=shelters,
+        disaster_options=disaster_options,
+        facility_options=facility_options,
+        status_options=status_options,
+    )
 
 # 避難所検索ページ
 @app.route('/shelter_search')
